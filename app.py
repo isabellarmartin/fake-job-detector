@@ -38,7 +38,7 @@ st.sidebar.markdown("- **Title Missing:** No job title provided.\n"
                     "- **Requirements Missing:** No requirements listed.\n"
                     "- **Benefits Missing:** No benefits listed.")
 
-st.sidebar.markdown("(Missing details? Hmmm seems fishy! )")
+st.sidebar.markdown("(Missing details = fishy behavior 🐟)")
 
 # Form for user input
 st.subheader("Fill out the job posting details:")
@@ -63,6 +63,7 @@ with st.form("job_form"):
     has_questions = st.selectbox("Does the job posting have screening questions?", [0, 1])
 
     submitted = st.form_submit_button("Check the Job Posting!")
+
 if submitted:
     # Transform text fields separately
     X_title = tfidf_title.transform([title_input])
@@ -73,14 +74,19 @@ if submitted:
 
     X_text_combined = hstack([X_title, X_company_profile, X_description, X_requirements, X_benefits])
 
-    # Numeric features including missing indicators
-    X_numeric = np.array([[telecommuting, has_company_logo, has_questions,
-                           title_missing, company_profile_missing, description_missing, requirements_missing, benefits_missing]])
-    X_numeric_scaled = scaler.transform(X_numeric)
-    X_numeric_sparse = sparse.csr_matrix(X_numeric_scaled)
+    # Separate metadata and missing fields
+    X_meta = np.array([[telecommuting, has_company_logo, has_questions]])
+    X_missing = np.array([[title_missing, company_profile_missing, description_missing, requirements_missing, benefits_missing]])
+
+    # Scale only metadata
+    X_meta_scaled = scaler.transform(X_meta)
+    X_meta_sparse = sparse.csr_matrix(X_meta_scaled)
+
+    # Missing fields unscaled
+    X_missing_sparse = sparse.csr_matrix(X_missing)
 
     # Final feature stacking
-    X_combined_total = hstack([X_text_combined, X_numeric_sparse])
+    X_combined_total = hstack([X_text_combined, X_meta_sparse, X_missing_sparse])
 
     # Apply feature selection
     X_final = kbest_selector.transform(X_combined_total)

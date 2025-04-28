@@ -74,17 +74,13 @@ if submitted:
 
     X_text_combined = hstack([X_title, X_company_profile, X_description, X_requirements, X_benefits])
 
-    # Numeric job metadata
-    X_numeric = np.array([[telecommuting, has_company_logo, has_questions]])
-    X_numeric_scaled = scaler.transform(X_numeric)
-    X_numeric_sparse = sparse.csr_matrix(X_numeric_scaled)
+    X_numeric = np.array([[telecommuting, has_company_logo, has_questions, title_missing, company_profile_missing, description_missing, requirements_missing, benefits_missing]])
 
-    # Missing field indicators
-    X_missing = np.array([[title_missing, company_profile_missing, description_missing, requirements_missing, benefits_missing]])
-    X_missing_sparse = sparse.csr_matrix(X_missing)
+X_numeric_scaled = scaler.transform(X_numeric)
+X_numeric_sparse = sparse.csr_matrix(X_numeric_scaled)
 
-    # Final feature stacking
-    X_combined_total = hstack([X_text_combined, X_numeric_sparse, X_missing_sparse])
+X_combined_total = hstack([X_text_combined, X_numeric_sparse])
+
 
     # Apply feature selection
     X_final = kbest_selector.transform(X_combined_total)

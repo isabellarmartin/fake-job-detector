@@ -74,19 +74,15 @@ if submitted:
 
     X_text_combined = hstack([X_title, X_company_profile, X_description, X_requirements, X_benefits])
 
-    # Separate metadata and missing fields
-    X_meta = np.array([[telecommuting, has_company_logo, has_questions]])
-    X_missing = np.array([[title_missing, company_profile_missing, description_missing, requirements_missing, benefits_missing]])
+    # Stack the correct 5 features for the scaler
+    X_meta = np.array([[telecommuting, has_company_logo, has_questions, title_missing, company_profile_missing]])
+    X_missing = np.array([[description_missing, requirements_missing, benefits_missing]])
 
-    st.write(f"Scaler expects {scaler.n_features_in_} features.")
-    st.write(f"X_meta shape: {X_meta.shape}")
-
-    try:
-        X_meta_scaled = scaler.transform(X_meta)
-    except Exception as e:
-        st.error(f"Scaler transform error: {e}")
-
+    # Scale only the expected metadata features
+    X_meta_scaled = scaler.transform(X_meta)
     X_meta_sparse = sparse.csr_matrix(X_meta_scaled)
+
+    # Remaining missing fields unscaled
     X_missing_sparse = sparse.csr_matrix(X_missing)
 
     # Final feature stacking

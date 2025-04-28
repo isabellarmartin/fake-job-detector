@@ -72,6 +72,9 @@ if submitted:
 
     # Apply feature selection
     X_final = kbest_selector.transform(X_combined)
+    
+st.write(f"Model expects {model.n_features_in_} features.")
+st.write(f"X_final shape: {X_final.shape}")
 
     # Predict
     probs = model.predict_proba(X_final)[:, 1]

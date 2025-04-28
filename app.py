@@ -10,9 +10,6 @@ tfidf_vectorizer = joblib.load("tfidf_vectorizer.pkl")
 kbest_selector = joblib.load("kbest_selector.pkl")
 scaler = joblib.load("scaler.pkl")
 
-import joblib
-joblib.dump(selector, "kbest_selector.pkl")
-
 
 # Set page config
 st.set_page_config(page_title="Fake Job Detector", page_icon="🌍", layout="centered")

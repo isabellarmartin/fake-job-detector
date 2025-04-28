@@ -38,7 +38,7 @@ st.sidebar.markdown("- **Title Missing:** No job title provided.\n"
                     "- **Requirements Missing:** No requirements listed.\n"
                     "- **Benefits Missing:** No benefits listed.")
 
-st.sidebar.markdown("(Missing details? Hmmm seems fishy! )")
+st.sidebar.markdown("(Missing details = fishy behavior 🐟)")
 
 # Form for user input
 st.subheader("Fill out the job posting details:")
@@ -74,13 +74,23 @@ if submitted:
 
     X_text_combined = hstack([X_title, X_company_profile, X_description, X_requirements, X_benefits])
 
-    X_numeric = np.array([[telecommuting, has_company_logo, has_questions, title_missing, company_profile_missing, description_missing, requirements_missing, benefits_missing]])
+    # Separate metadata and missing fields
+    X_meta = np.array([[telecommuting, has_company_logo, has_questions]])
+    X_missing = np.array([[title_missing, company_profile_missing, description_missing, requirements_missing, benefits_missing]])
 
-X_numeric_scaled = scaler.transform(X_numeric)
-X_numeric_sparse = sparse.csr_matrix(X_numeric_scaled)
+    st.write(f"Scaler expects {scaler.n_features_in_} features.")
+    st.write(f"X_meta shape: {X_meta.shape}")
 
-X_combined_total = hstack([X_text_combined, X_numeric_sparse])
+    try:
+        X_meta_scaled = scaler.transform(X_meta)
+    except Exception as e:
+        st.error(f"Scaler transform error: {e}")
 
+    X_meta_sparse = sparse.csr_matrix(X_meta_scaled)
+    X_missing_sparse = sparse.csr_matrix(X_missing)
+
+    # Final feature stacking
+    X_combined_total = hstack([X_text_combined, X_meta_sparse, X_missing_sparse])
 
     # Apply feature selection
     X_final = kbest_selector.transform(X_combined_total)
@@ -98,10 +108,10 @@ X_combined_total = hstack([X_text_combined, X_numeric_sparse])
                     "Scammers love lazy job listings.")
         st.image("https://media.giphy.com/media/3o7aCSPqXE5C6T8tBC/giphy.gif", use_container_width=True)
     else:
-        st.success("\n# This posting looks normal!")
+        st.success("\n# ✅ This posting looks normal!")
         st.markdown("Always double-check, but this one seems legit based on the details provided.")
         st.image("https://media.giphy.com/media/3orieUe6ejxSFxYCXe/giphy.gif", use_container_width=True)
 
     st.write("---")
 
-    st.caption("(This tool makes predictions based on patterns \u2014 it's not a replacement for your good judgment. If it sounds shady, trust your gut!)")
+    st.caption("(This tool makes predictions based on patterns — it's not a replacement for your good judgment. If it sounds shady, trust your gut!)")

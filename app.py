@@ -6,10 +6,13 @@ from scipy.sparse import hstack
 
 # Load all models and transformers
 model = joblib.load("best_random_forest.pkl")
-tfidf_vectorizer = joblib.load("tfidf_vectorizer.pkl")
+tfidf_title = joblib.load("tfidf_title.pkl")
+tfidf_description = joblib.load("tfidf_description.pkl")
+tfidf_requirements = joblib.load("tfidf_requirements.pkl")
+tfidf_benefits = joblib.load("tfidf_benefits.pkl")
+tfidf_company_profile = joblib.load("tfidf_company_profile.pkl")
 kbest_selector = joblib.load("kbest_selector.pkl")
 scaler = joblib.load("scaler.pkl")
-
 
 # Set page config
 st.set_page_config(page_title="Fake Job Detector", page_icon="🌍", layout="centered")
@@ -24,26 +27,35 @@ st.write("---")
 st.sidebar.image("https://media.giphy.com/media/26gsiCIKW7ANEmxKE/giphy.gif", use_container_width=True)
 st.sidebar.markdown("#### **How it works:**")
 st.sidebar.markdown("This tool checks job postings using the text (title, description, etc.) \n" 
-                    "**and** information about the job (like if important fields are missing).")
+                    "**and** signs that important information might be *missing*.")
 
 st.sidebar.markdown("---")
 
 st.sidebar.markdown("#### **Binary Field Explanations:**")
-st.sidebar.markdown("- **Telecommuting:** Whether it's a remote job (1 = yes, 0 = no).\n"
-                    "- **Company Logo Present:** Whether the posting has a company logo.\n"
-                    "- **Questions Asked:** Whether the posting asks additional screening questions.")
+st.sidebar.markdown("- **Title Missing:** No job title provided.\n"
+                    "- **Company Profile Missing:** No company profile provided.\n"
+                    "- **Description Missing:** No job description provided.\n"
+                    "- **Requirements Missing:** No requirements listed.\n"
+                    "- **Benefits Missing:** No benefits listed.")
 
-st.sidebar.markdown("(Missing details? Hmmm seems fishy. )")
+st.sidebar.markdown("(Missing details? Hmmm seems fishy! )")
 
 # Form for user input
 st.subheader("Fill out the job posting details:")
 
 with st.form("job_form"):
     title_input = st.text_input("Job Title:")
+    company_profile_input = st.text_area("Company Profile:")
     description_input = st.text_area("Job Description:")
     requirements_input = st.text_area("Job Requirements:")
     benefits_input = st.text_area("Job Benefits:")
-    company_profile_input = st.text_area("Company Profile:")
+
+    st.markdown("**Mark any missing fields:**")
+    title_missing = st.checkbox("Title is missing", value=False)
+    company_profile_missing = st.checkbox("Company Profile is missing", value=False)
+    description_missing = st.checkbox("Description is missing", value=False)
+    requirements_missing = st.checkbox("Requirements are missing", value=False)
+    benefits_missing = st.checkbox("Benefits are missing", value=False)
 
     st.markdown("**Job Metadata:**")
     telecommuting = st.selectbox("Is it a telecommuting (remote) job?", [0, 1])
@@ -53,28 +65,31 @@ with st.form("job_form"):
     submitted = st.form_submit_button("Check the Job Posting!")
 
 if submitted:
-    # Combine text fields
-    combined_text = " ".join([title_input, company_profile_input, description_input, requirements_input, benefits_input])
+    # Transform text fields separately
+    X_title = tfidf_title.transform([title_input])
+    X_company_profile = tfidf_company_profile.transform([company_profile_input])
+    X_description = tfidf_description.transform([description_input])
+    X_requirements = tfidf_requirements.transform([requirements_input])
+    X_benefits = tfidf_benefits.transform([benefits_input])
 
-    # Transform the combined text
-    X_text = tfidf_vectorizer.transform([combined_text])
+    X_text_combined = hstack([X_title, X_company_profile, X_description, X_requirements, X_benefits])
 
-    # Numeric features
+    # Numeric job metadata
     X_numeric = np.array([[telecommuting, has_company_logo, has_questions]])
     X_numeric_scaled = scaler.transform(X_numeric)
     X_numeric_sparse = sparse.csr_matrix(X_numeric_scaled)
 
-    # Combine text and numeric features
-    X_combined = hstack([X_text, X_numeric_sparse])
+    # Missing field indicators
+    X_missing = np.array([[title_missing, company_profile_missing, description_missing, requirements_missing, benefits_missing]])
+    X_missing_sparse = sparse.csr_matrix(X_missing)
+
+    # Final feature stacking
+    X_combined_total = hstack([X_text_combined, X_numeric_sparse, X_missing_sparse])
 
     # Apply feature selection
-    X_final = kbest_selector.transform(X_combined)
+    X_final = kbest_selector.transform(X_combined_total)
 
-    # 🔵 DEBUGGING LINES HERE (Same indentation as above!)
-    st.write(f"Model expects {model.n_features_in_} features.")
-    st.write(f"X_final shape: {X_final.shape}")
-
-    # Predict (Same indentation!)
+    # Predict
     probs = model.predict_proba(X_final)[:, 1]
     prediction = (probs >= 0.4).astype(int)
 

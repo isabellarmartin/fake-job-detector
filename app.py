@@ -63,7 +63,6 @@ with st.form("job_form"):
     has_questions = st.selectbox("Does the job posting have screening questions?", [0, 1])
 
     submitted = st.form_submit_button("Check the Job Posting!")
-
 if submitted:
     # Transform text fields separately
     X_title = tfidf_title.transform([title_input])
@@ -74,13 +73,14 @@ if submitted:
 
     X_text_combined = hstack([X_title, X_company_profile, X_description, X_requirements, X_benefits])
 
-    X_numeric = np.array([[telecommuting, has_company_logo, has_questions, title_missing, company_profile_missing, description_missing, requirements_missing, benefits_missing]])
+    # Numeric features including missing indicators
+    X_numeric = np.array([[telecommuting, has_company_logo, has_questions,
+                           title_missing, company_profile_missing, description_missing, requirements_missing, benefits_missing]])
+    X_numeric_scaled = scaler.transform(X_numeric)
+    X_numeric_sparse = sparse.csr_matrix(X_numeric_scaled)
 
-X_numeric_scaled = scaler.transform(X_numeric)
-X_numeric_sparse = sparse.csr_matrix(X_numeric_scaled)
-
-X_combined_total = hstack([X_text_combined, X_numeric_sparse])
-
+    # Final feature stacking
+    X_combined_total = hstack([X_text_combined, X_numeric_sparse])
 
     # Apply feature selection
     X_final = kbest_selector.transform(X_combined_total)
@@ -98,10 +98,10 @@ X_combined_total = hstack([X_text_combined, X_numeric_sparse])
                     "Scammers love lazy job listings.")
         st.image("https://media.giphy.com/media/3o7aCSPqXE5C6T8tBC/giphy.gif", use_container_width=True)
     else:
-        st.success("\n# This posting looks normal!")
+        st.success("\n# ✅ This posting looks normal!")
         st.markdown("Always double-check, but this one seems legit based on the details provided.")
         st.image("https://media.giphy.com/media/3orieUe6ejxSFxYCXe/giphy.gif", use_container_width=True)
 
     st.write("---")
 
-    st.caption("(This tool makes predictions based on patterns \u2014 it's not a replacement for your good judgment. If it sounds shady, trust your gut!)")
+    st.caption("(This tool makes predictions based on patterns — it's not a replacement for your good judgment. If it sounds shady, trust your gut!)")

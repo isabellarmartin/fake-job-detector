@@ -1,80 +1,99 @@
 import streamlit as st
-import pickle
+import joblib
 import numpy as np
-import pandas as pd
-from scipy.sparse import hstack, csr_matrix
+from scipy import sparse
+from scipy.sparse import hstack
 
-# Load model components
-with open("rf_model.pkl", "rb") as f:
-    model = pickle.load(f)
-with open("tfidf_vectorizer.pkl", "rb") as f:
-    vectorizer = pickle.load(f)
-with open("kbest_selector.pkl", "rb") as f:
-    selector = pickle.load(f)
+# Load your model
+model = joblib.load("best_random_forest.pkl")
 
-# App Config
-st.set_page_config(page_title="Fake Job Detector", layout="centered")
-st.title("🕵️‍♀️ Fake Job Posting Detector")
-st.caption("Paste a job description and find out if it's likely **real** or **fake** using our trained model. No cap.")
+# Load your saved TF-IDF vectorizers and scaler
+# (You will need to have these saved too!)
+tfidf_title = joblib.load("tfidf_title.pkl")
+tfidf_description = joblib.load("tfidf_description.pkl")
+tfidf_requirements = joblib.load("tfidf_requirements.pkl")
+tfidf_benefits = joblib.load("tfidf_benefits.pkl")
+scaler = joblib.load("scaler.pkl")
 
-# Layout columns
-col1, col2 = st.columns([2, 1])
+# Set page config
+st.set_page_config(page_title="Fake Job Detector", page_icon="🌍", layout="centered")
 
-with col1:
-    job_input = st.text_area("💼 Enter job posting content:", height=250)
+# Title
+st.title("Fake Job Posting Detector")
+st.markdown("### Check to see if a job posting might be fake")
 
-with col2:
-    st.markdown("### ⚙️ Job Attributes")
-    telecommuting = st.checkbox("Telecommuting?", value=False)
-    logo = st.checkbox("Has company logo?", value=True)
-    questions = st.checkbox("Includes screening questions?", value=False)
+st.write("---")
 
-# Convert inputs
-telecommuting = int(telecommuting)
-logo = int(logo)
-questions = int(questions)
+# Sidebar fun
+st.sidebar.image("https://media.giphy.com/media/26gsiCIKW7ANEmxKE/giphy.gif", use_column_width=True)
+st.sidebar.markdown("#### **How it works:**")
+st.sidebar.markdown("This tool checks job postings using both the text (like title and description) \n" 
+                    "**and** signs that important information might be *missing*.\n"
+                    "If critical details are missing, that's often a red flag for scams.")
 
-# Load Random Example
-if st.button("🎲 Load Random Job"):
-    df = pd.read_csv("fake_job_postings.csv")
-    sample = df.sample(1).iloc[0]
-    example_text = f"{sample['title']} {sample['description']}"
-    st.session_state['example_text'] = example_text
+st.sidebar.markdown("---")
 
-# Pre-fill example if loaded
-if 'example_text' in st.session_state:
-    st.text_area("🔍 Random Job Example", st.session_state['example_text'], height=200)
-    job_input = st.session_state['example_text']
+st.sidebar.markdown("#### **Binary Field Explanations:**")
+st.sidebar.markdown("- **Title Missing:** The job listing has no title.\n"
+                    "- **Company Profile Missing:** No company description was provided.\n"
+                    "- **Description Missing:** The job description is empty.\n"
+                    "- **Requirements Missing:** No skills/qualifications listed.\n"
+                    "- **Benefits Missing:** No benefits were mentioned.")
 
-# Prediction function
-def predict_post(text, telecommuting, logo, questions):
-    text_vec = vectorizer.transform([text])
-    numeric_vec = csr_matrix(np.array([[telecommuting, logo, questions]]))
-    combined = hstack([text_vec, numeric_vec])
-    selected = selector.transform(combined)
-    pred = model.predict(selected)[0]
-    prob = model.predict_proba(selected)[0][1]
-    return pred, prob
+st.sidebar.markdown("(Missing fields = fishy behavior \U0001F41F)")
 
-# Prediction
-if st.button("🔎 Sniff This Job"):
-    if not job_input.strip():
-        st.warning("Please paste a job description first.")
+# Form for user input
+st.subheader("Fill out the job posting details:")
+
+with st.form("job_form"):
+    title_input = st.text_input("Job Title:")
+    description_input = st.text_area("Job Description:")
+    requirements_input = st.text_area("Job Requirements:")
+    benefits_input = st.text_area("Job Benefits:")
+
+    st.markdown("**Check if any fields are missing:**")
+    title_missing = st.checkbox("Title is missing", value=False)
+    company_profile_missing = st.checkbox("Company profile is missing", value=False)
+    description_missing = st.checkbox("Description is missing", value=False)
+    requirements_missing = st.checkbox("Requirements are missing", value=False)
+    benefits_missing = st.checkbox("Benefits are missing", value=False)
+
+    submitted = st.form_submit_button("Check the Job Posting!")
+
+if submitted:
+    # Transform text fields
+    X_title = tfidf_title.transform([title_input])
+    X_description = tfidf_description.transform([description_input])
+    X_requirements = tfidf_requirements.transform([requirements_input])
+    X_benefits = tfidf_benefits.transform([benefits_input])
+
+    X_text_combined = hstack([X_title, X_description, X_requirements, X_benefits])
+
+    # Numeric missing indicators
+    X_numeric = np.array([[title_missing, company_profile_missing, description_missing, requirements_missing, benefits_missing]])
+    X_numeric_scaled = scaler.transform(X_numeric)
+    X_numeric_sparse = sparse.csr_matrix(X_numeric_scaled)
+
+    # Final feature stacking
+    X_final = hstack([X_text_combined, X_numeric_sparse])
+
+    # Predict probability and apply threshold
+    probs = model.predict_proba(X_final)[:, 1]
+    prediction = (probs >= 0.4).astype(int)
+
+    st.write("---")
+    st.subheader("Results:")
+
+    if prediction[0] == 1:
+        st.error("\n# ⚡ ALERT: This posting looks suspicious!")
+        st.markdown("Beware of jobs with missing details, vague descriptions, or promises that sound too good to be true.\n"
+                    "Scammers love lazy job listings.")
+        st.image("https://media.giphy.com/media/3o7aCSPqXE5C6T8tBC/giphy.gif", use_column_width=True)
     else:
-        label, prob = predict_post(job_input, telecommuting, logo, questions)
+        st.success("\n# ✅ This posting looks normal!")
+        st.markdown("Always double-check, but this one seems legit based on the details provided.")
+        st.image("https://media.giphy.com/media/3orieUe6ejxSFxYCXe/giphy.gif", use_column_width=True)
 
-        st.subheader("Prediction Result:")
-        if label == 1:
-            st.error("🚩 This job is likely **FAKE**.")
-            st.caption("🤖 Suspicious vibes detected.")
-        else:
-            st.success("✅ This job is likely **REAL**.")
-            st.caption("📋 Seems legit... but always trust your gut.")
+    st.write("---")
 
-        # Progress bar
-        st.progress(prob if label == 1 else 1 - prob)
-        st.caption(f"Confidence: {prob:.2%} fake" if label == 1 else f"Confidence: {(1 - prob):.2%} real")
-
-# Footer meme (optional)
-st.markdown("---")
-st.caption("App built with ❤️ and paranoia about scam jobs.")
+    st.caption("(This tool makes predictions based on patterns \u2014 it's not a replacement for your good judgment. If it sounds shady, trust your gut!)")

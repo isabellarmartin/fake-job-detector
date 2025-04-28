@@ -8,7 +8,6 @@ from scipy.sparse import hstack
 model = joblib.load("best_random_forest.pkl")
 
 # Load your saved TF-IDF vectorizers and scaler
-# (You will need to have these saved too!)
 tfidf_title = joblib.load("tfidf_title.pkl")
 tfidf_description = joblib.load("tfidf_description.pkl")
 tfidf_requirements = joblib.load("tfidf_requirements.pkl")
@@ -25,11 +24,10 @@ st.markdown("### Check to see if a job posting might be fake")
 st.write("---")
 
 # Sidebar fun
-st.sidebar.image("https://media.giphy.com/media/26gsiCIKW7ANEmxKE/giphy.gif", use_column_width=True)
+st.sidebar.image("https://media.giphy.com/media/26gsiCIKW7ANEmxKE/giphy.gif", use_container_width=True)
 st.sidebar.markdown("#### **How it works:**")
 st.sidebar.markdown("This tool checks job postings using both the text (like title and description) \n" 
-                    "**and** signs that important information might be *missing*.\n"
-                    "If critical details are missing, that's often a red flag for scams.")
+                    "**and** signs that important information might be *missing*.")
 
 st.sidebar.markdown("---")
 
@@ -40,7 +38,7 @@ st.sidebar.markdown("- **Title Missing:** The job listing has no title.\n"
                     "- **Requirements Missing:** No skills/qualifications listed.\n"
                     "- **Benefits Missing:** No benefits were mentioned.")
 
-st.sidebar.markdown("(Missing fields = fishy behavior \U0001F41F)")
+st.sidebar.markdown("(Missing fields? Hmmm this seems fishy)")
 
 # Form for user input
 st.subheader("Fill out the job posting details:")
@@ -50,6 +48,7 @@ with st.form("job_form"):
     description_input = st.text_area("Job Description:")
     requirements_input = st.text_area("Job Requirements:")
     benefits_input = st.text_area("Job Benefits:")
+    company_profile_input = st.text_area("Company Profile (optional):")
 
     st.markdown("**Check if any fields are missing:**")
     title_missing = st.checkbox("Title is missing", value=False)
@@ -85,14 +84,14 @@ if submitted:
     st.subheader("Results:")
 
     if prediction[0] == 1:
-        st.error("\n# ⚡ ALERT: This posting looks suspicious!")
+        st.error("\n# ALERT: This posting looks suspicious!")
         st.markdown("Beware of jobs with missing details, vague descriptions, or promises that sound too good to be true.\n"
                     "Scammers love lazy job listings.")
-        st.image("https://media.giphy.com/media/3o7aCSPqXE5C6T8tBC/giphy.gif", use_column_width=True)
+        st.image("https://media.giphy.com/media/3o7aCSPqXE5C6T8tBC/giphy.gif", use_container_width=True)
     else:
-        st.success("\n# ✅ This posting looks normal!")
+        st.success("\n# This posting looks normal!")
         st.markdown("Always double-check, but this one seems legit based on the details provided.")
-        st.image("https://media.giphy.com/media/3orieUe6ejxSFxYCXe/giphy.gif", use_column_width=True)
+        st.image("https://media.giphy.com/media/3orieUe6ejxSFxYCXe/giphy.gif", use_container_width=True)
 
     st.write("---")
 
